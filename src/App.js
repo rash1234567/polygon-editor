@@ -1,11 +1,12 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Stage, Layer, Line, Transformer, Circle } from "react-konva";
+import React from "react";
 import PolygonEditor from "./PolygonEditor";
+import ResponsivePolygonEditor from "./ResponsivePolygonEditor";
 
 const App = () => {
   return (
     <div className="">
-      <PolygonEditor />
+      {/* <PolygonEditor /> */}
+      <ResponsivePolygonEditor/>
     </div>
   );
 };
