@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Stage, Layer, Line, Transformer, Circle } from "react-konva";
-import { Button, Card, Tooltip } from "@mui/material";
+import { Button, Card} from "@mui/material";
 
 const PolygonEditor = () => {
   // State to track the size of the canvas
@@ -104,10 +104,6 @@ const PolygonEditor = () => {
     setMousePosition(null);
   };
 
-  const exportPoints = () => {
-    navigator.clipboard.writeText(JSON.stringify(points));
-    alert("Polygon points copied to clipboard!");
-  };
 
   return (
     <div
@@ -146,11 +142,6 @@ const PolygonEditor = () => {
         <Button variant="outlined" color="error" onClick={resetPolygon}>
           Reset
         </Button>
-        <Tooltip title="Copy points to clipboard">
-          <Button variant="outlined" onClick={exportPoints}>
-            Export Points
-          </Button>
-        </Tooltip>
       </Card>
 
       <Stage
@@ -211,7 +202,6 @@ const PolygonEditor = () => {
                 points={[...points, mousePosition.x, mousePosition.y]}
                 stroke="#888888"
                 strokeWidth={0.1}
-                // dash={[5, 5]}
               />
             </>
           )}

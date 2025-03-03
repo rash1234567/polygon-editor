@@ -4,9 +4,9 @@ import ResponsivePolygonEditor from "./ResponsivePolygonEditor";
 
 const App = () => {
   return (
-    <div className="">
-      {/* <PolygonEditor /> */}
-      <ResponsivePolygonEditor/>
+    <div className="w-[90vw] mx-auto mt-4">
+      <PolygonEditor />
+      {/* <ResponsivePolygonEditor/> */}
     </div>
   );
 };

@@ -1,86 +1,66 @@
+// This component renders a resizable and responsive polygon editor.
+// The polygon scales dynamically with window size 
 import React, { useEffect, useRef, useState } from "react";
 import { Stage, Layer, Line, Transformer, Circle } from "react-konva";
-import { Button, Card, Tooltip } from "@mui/material";
+import { Button, Card} from "@mui/material";
 
-const PolygonEditor = () => {
-  // State to track the size of the canvas
+const ResponsivePolygonEditor = () => {
   const [stageSize, setStageSize] = useState({ width: 800, height: 500 });
-  // State to store the current mouse position when drawing
-  const [mousePosition, setMousePosition] = useState(null);
-  // Ref for the container holding the canvas
-  const containerRef = useRef(null);
-  // Ref for the polygon shape
-  const polygonRef = useRef(null);
-  // Ref for the transformer tool to enable resizing/moving
-  const transformerRef = useRef(null);
-  // Proximity threshold to detect if a point is close enough to close the polygon
-  const PROXIMITY_THRESHOLD = 10;
-  // State to store the polygon's points
   const [points, setPoints] = useState([]);
-  // State to track whether the user is actively drawing
   const [isDrawing, setIsDrawing] = useState(false);
-  // Ref for the Stage component
+  const [mousePosition, setMousePosition] = useState(null);
+  const PROXIMITY_THRESHOLD = 10;
+  const containerRef = useRef(null);
   const stageRef = useRef(null);
+  const polygonRef = useRef(null);
+  const transformerRef = useRef(null);
+  const scaleRef = useRef({ x: 1, y: 1 });
 
-  // Effect to update the stage size when the window resizes
   useEffect(() => {
     const updateSize = () => {
       if (containerRef.current) {
         const { offsetWidth, offsetHeight } = containerRef.current;
+        const scaleX = offsetWidth / stageSize.width;
+        const scaleY = offsetHeight / stageSize.height;
+        scaleRef.current = { x: scaleX, y: scaleY };
         setStageSize({ width: offsetWidth, height: offsetHeight });
       }
     };
-
     updateSize();
     window.addEventListener("resize", updateSize);
     return () => window.removeEventListener("resize", updateSize);
   }, []);
 
-  // Handles user clicks on the canvas to add points to the polygon
-  const handleCanvasClick = (e) => {
-    if (!isDrawing) return; // Prevent adding points if not in drawing mode
-    const stage = e.target.getStage();
-    const pointerPosition = stage.getPointerPosition(); // gets where uyour pointer is on the stage ]
-    if (!pointerPosition) return;
-    const { x, y } = pointerPosition;
-    // Check if the new point is close to the starting point, if so, close the polygon
-    if (points.length >= 2) {
-      const [firstX, firstY] = points.slice(0, 2);
-      const distance = Math.sqrt((x - firstX) ** 2 + (y - firstY) ** 2);
-      if (distance <= PROXIMITY_THRESHOLD) {
-        setPoints((prevPoints) => [...prevPoints, firstX, firstY]); // Close polygon You can perform addition function at this point
-        setMousePosition(null);
-        setIsDrawing(false);
-        return;
-      }
-    }
-    setPoints((prevPoints) => [...prevPoints, x, y]);
-  };
+  const scalePoints = (points, scaleX, scaleY) =>
+    points.map((coord, i) => (i % 2 === 0 ? coord * scaleX : coord * scaleY));
 
-   // Updates the mouse position while drawing to create a preview line 
-  const handleMouseMove = (e) => {
+  const handleCanvasClick = (e) => {
     if (!isDrawing) return;
     const stage = e.target.getStage();
     const pointerPosition = stage.getPointerPosition();
     if (!pointerPosition) return;
-    setMousePosition({ x: pointerPosition.x, y: pointerPosition.y });
-  };
 
-    // Handles selection and deselection of the polygon
-  const handleSelect = () => {
-    if (transformerRef.current && polygonRef.current) {
-      const currentNodes = transformerRef.current.nodes();
-      if (currentNodes.length > 0) {
-        transformerRef.current.nodes([]); // Deselects the polygon, making the transformer disappear
-      } else if (polygonRef.current) {
-        transformerRef.current.nodes([polygonRef.current]); // Selects the polygon, making the transformer reappear
+    const { x, y } = pointerPosition;
+    const scaledX = x / scaleRef.current.x;
+    const scaledY = y / scaleRef.current.y;
+    // If at least 2 points exist, check proximity to the starting point
+    if (points.length >= 2) {
+      const [firstX, firstY] = points.slice(0, 2);
+      const distance = Math.sqrt(
+        (scaledX - firstX) ** 2 + (scaledY - firstY) ** 2
+      );
+
+      if (distance <= PROXIMITY_THRESHOLD) {
+        // Close the polygon by adding the first point again
+        setPoints((prev) => [...prev, firstX, firstY]);
+        setIsDrawing(false); // Stop drawing
+        return;
       }
-      transformerRef.current.getLayer().batchDraw();
     }
+    // Add new point to the polygon
+    setPoints((prev) => [...prev, scaledX, scaledY]);
   };
- 
 
-// Adjusts the points when the polygon is transformed (scaled or moved)
   const handleTransformEnd = () => {
     if (polygonRef.current) {
       const node = polygonRef.current;
@@ -96,31 +76,39 @@ const PolygonEditor = () => {
       setPoints(newPoints);
     }
   };
+  const handleSelect = () => {
+    if (transformerRef.current && polygonRef.current) {
+      const currentNodes = transformerRef.current.nodes();
+      if (currentNodes.length > 0) {
+        transformerRef.current.nodes([]); // Deselects the polygon, making the transformer disappear
+      } else if (polygonRef.current) {
+        transformerRef.current.nodes([polygonRef.current]); // Selects the polygon, making the transformer reappear
+      }
+      transformerRef.current.getLayer().batchDraw();
+    }
+  };
 
-    // Resets the polygon drawing process
+  const handleMouseMove = (e) => {
+    if (!isDrawing) return;
+    const stage = e.target.getStage();
+    const pointerPosition = stage.getPointerPosition();
+    if (!pointerPosition) return;
+    setMousePosition({
+      x: pointerPosition.x / scaleRef.current.x,
+      y: pointerPosition.y / scaleRef.current.y,
+    });
+  };
+
   const resetPolygon = () => {
     setPoints([]);
     setIsDrawing(true);
     setMousePosition(null);
   };
 
-  const exportPoints = () => {
-    navigator.clipboard.writeText(JSON.stringify(points));
-    alert("Polygon points copied to clipboard!");
-  };
-
   return (
     <div
       ref={containerRef}
-      style={{
-        width: "100%",
-        height: "100%",
-        position: "relative",
-        backgroundColor: "#f0f0f0",
-        padding: "10px",
-        boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
-        borderRadius: "8px",
-      }}
+      style={{ width: "100%", height: "100%", position: "relative" }}
     >
       {/* Toolbar */}
       <Card
@@ -146,11 +134,6 @@ const PolygonEditor = () => {
         <Button variant="outlined" color="error" onClick={resetPolygon}>
           Reset
         </Button>
-        <Tooltip title="Copy points to clipboard">
-          <Button variant="outlined" onClick={exportPoints}>
-            Export Points
-          </Button>
-        </Tooltip>
       </Card>
 
       <Stage
@@ -166,21 +149,40 @@ const PolygonEditor = () => {
         }}
       >
         <Layer>
-          {/* Draw starting point */}
+          {points.length >= 2 && isDrawing && (
+            <Circle
+              x={points[0] * scaleRef.current.x}
+              y={points[1] * scaleRef.current.y}
+              radius={6}
+              fill="#B20000"
+            />
+          )}
+          {/* Preview lines and color fill during drawing */}
           {isDrawing && points.length >= 2 && (
-            <Circle x={points[0]} y={points[1]} radius={6} fill="#B20000" />
+            <Line
+              points={scalePoints(
+                [...points, mousePosition.x, mousePosition.y],
+                scaleRef.current.x,
+                scaleRef.current.y
+              )}
+              stroke="#008080"
+              strokeWidth={0.2}
+              closed={true} // Ensures it appears as a filled shape
+              fill="rgba(230, 255, 250, 0.3)" // Light mint green fill while drawing
+            />
           )}
 
-          {/* blue color in the polygon during drawing */}
-
-          {/* Polygon */}
           {points.length > 0 && (
             <Line
-              points={points}
-              stroke="#008080" // Teal stroke
+              points={scalePoints(
+                points,
+                scaleRef.current.x,
+                scaleRef.current.y
+              )}
+              stroke="#008080"
               strokeWidth={2}
               closed={!isDrawing}
-              fill={!isDrawing ? "rgba(230, 255, 250, 0.5)" : undefined} // Light mint green
+              fill={!isDrawing ? "rgba(230, 255, 250, 0.5)" : undefined}
               ref={polygonRef}
               draggable={!isDrawing}
               onTransformEnd={handleTransformEnd}
@@ -188,34 +190,17 @@ const PolygonEditor = () => {
             />
           )}
 
-          {/* Mouse position preview */}
           {isDrawing && points.length >= 2 && mousePosition && (
             <Line
-              points={[...points, mousePosition.x, mousePosition.y]}
+              points={scalePoints(
+                [...points, mousePosition.x, mousePosition.y],
+                scaleRef.current.x,
+                scaleRef.current.y
+              )}
               stroke="#008080"
               strokeWidth={1}
             />
           )}
-
-          {/* Preview lines and color fill during drawing */}
-          {isDrawing && points.length >= 2 && mousePosition && (
-            <>
-              <Line
-                points={[...points, mousePosition.x, mousePosition.y]}
-                stroke="#008080" // Teal stroke
-                strokeWidth={0.1}
-                closed={true}
-                fill="rgba(230, 255, 250, 0.2)" // Light mint green fill during drawing
-              />
-              <Line
-                points={[...points, mousePosition.x, mousePosition.y]}
-                stroke="#888888"
-                strokeWidth={0.1}
-                // dash={[5, 5]}
-              />
-            </>
-          )}
-
           {/* Transformer (for resizing the polygon) */}
           {!isDrawing && (
             <Transformer ref={transformerRef} rotateEnabled={false} />
@@ -226,4 +211,4 @@ const PolygonEditor = () => {
   );
 };
 
-export default PolygonEditor;
+export default ResponsivePolygonEditor;
